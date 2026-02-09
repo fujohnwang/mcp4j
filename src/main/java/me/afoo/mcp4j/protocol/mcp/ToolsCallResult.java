@@ -2,6 +2,7 @@ package me.afoo.mcp4j.protocol.mcp;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,10 +12,13 @@ import java.util.List;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ToolsCallResult {
-    
+
     @JsonProperty("content")
     private List<Content> content;
-    
+
+    @JsonProperty("structuredContent")
+    private JsonNode structuredContent;
+
     @JsonProperty("isError")
     private Boolean isError;
 
@@ -26,38 +30,31 @@ public class ToolsCallResult {
         this.content = content;
     }
 
-    public List<Content> getContent() {
-        return content;
-    }
+    public List<Content> getContent() { return content; }
+    public void setContent(List<Content> content) { this.content = content; }
 
-    public void setContent(List<Content> content) {
-        this.content = content;
-    }
+    public JsonNode getStructuredContent() { return structuredContent; }
+    public void setStructuredContent(JsonNode structuredContent) { this.structuredContent = structuredContent; }
 
-    public Boolean getIsError() {
-        return isError;
-    }
-
-    public void setIsError(Boolean isError) {
-        this.isError = isError;
-    }
+    public Boolean getIsError() { return isError; }
+    public void setIsError(Boolean isError) { this.isError = isError; }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class Content {
         @JsonProperty("type")
         private String type;
-        
+
         @JsonProperty("text")
         private String text;
-        
+
         @JsonProperty("data")
         private String data;
-        
+
         @JsonProperty("mimeType")
         private String mimeType;
-        
+
         @JsonProperty("resource")
-        private Object resource;
+        private Resource resource;
 
         public Content() {}
 
@@ -76,24 +73,52 @@ public class ToolsCallResult {
             return c;
         }
 
-        public String getType() {
-            return type;
+        public static Content audio(String data, String mimeType) {
+            Content c = new Content();
+            c.type = "audio";
+            c.data = data;
+            c.mimeType = mimeType;
+            return c;
         }
 
-        public String getText() {
-            return text;
+        public static Content resource(Resource resource) {
+            Content c = new Content();
+            c.type = "resource";
+            c.resource = resource;
+            return c;
         }
 
-        public String getData() {
-            return data;
+        public String getType() { return type; }
+        public String getText() { return text; }
+        public String getData() { return data; }
+        public String getMimeType() { return mimeType; }
+        public Resource getResource() { return resource; }
+    }
+
+    /**
+     * Embedded resource in tool result.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class Resource {
+        @JsonProperty("uri")
+        private String uri;
+
+        @JsonProperty("mimeType")
+        private String mimeType;
+
+        @JsonProperty("text")
+        private String text;
+
+        public Resource() {}
+
+        public Resource(String uri, String mimeType, String text) {
+            this.uri = uri;
+            this.mimeType = mimeType;
+            this.text = text;
         }
 
-        public String getMimeType() {
-            return mimeType;
-        }
-
-        public Object getResource() {
-            return resource;
-        }
+        public String getUri() { return uri; }
+        public String getMimeType() { return mimeType; }
+        public String getText() { return text; }
     }
 }

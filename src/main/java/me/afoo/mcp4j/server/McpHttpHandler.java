@@ -200,7 +200,8 @@ public class McpHttpHandler implements HttpHandler {
     private JsonRpcResponse handleToolsList(Object id) {
         List<Tool> tools = toolRegistry.getAllTools();
         List<ToolInfo> toolInfos = tools.stream()
-                .map(tool -> new ToolInfo(tool.getName(), tool.getDescription(), tool.getInputSchema()))
+                .map(tool -> new ToolInfo(tool.getName(), tool.getDescription(),
+                        tool.getInputSchema(), tool.getAnnotations()))
                 .collect(Collectors.toList());
 
         ToolsListResult result = new ToolsListResult(toolInfos);
@@ -212,9 +213,18 @@ public class McpHttpHandler implements HttpHandler {
             ToolsCallRequest callRequest = MAPPER.convertValue(params, ToolsCallRequest.class);
             ToolsCallResult result = toolExecutor.execute(callRequest.getName(), callRequest.getArguments());
             return new JsonRpcResponse(id, result);
+        } catch (ToolExecutor.ToolNotFoundException e) {
+            return new JsonRpcResponse(id,
+                    new JsonRpcError(JsonRpcError.INVALID_PARAMS, e.getMessage()));
+        } catch (ToolExecutor.InvalidToolArgumentsException e) {
+            return new JsonRpcResponse(id,
+                    new JsonRpcError(JsonRpcError.INVALID_PARAMS, e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return new JsonRpcResponse(id,
+                    new JsonRpcError(JsonRpcError.INVALID_PARAMS, "Invalid tool call params: " + e.getMessage()));
         } catch (Exception e) {
             return new JsonRpcResponse(id,
-                    new JsonRpcError(JsonRpcError.INVALID_PARAMS, "Invalid tool call params"));
+                    new JsonRpcError(JsonRpcError.INTERNAL_ERROR, "Internal error: " + e.getMessage()));
         }
     }
 
