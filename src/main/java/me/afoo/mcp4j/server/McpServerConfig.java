@@ -13,6 +13,7 @@ public class McpServerConfig {
     private final String serverName;
     private final String serverVersion;
     private final int backlog;
+    private final int threadPoolSize;
 
     private McpServerConfig(Builder builder) {
         this.host = builder.host;
@@ -22,35 +23,17 @@ public class McpServerConfig {
         this.serverName = builder.serverName;
         this.serverVersion = builder.serverVersion;
         this.backlog = builder.backlog;
+        this.threadPoolSize = builder.threadPoolSize;
     }
 
-    public String getHost() {
-        return host;
-    }
-
-    public int getPort() {
-        return port;
-    }
-
-    public String getEndpoint() {
-        return endpoint;
-    }
-
-    public Duration getSessionTimeout() {
-        return sessionTimeout;
-    }
-
-    public String getServerName() {
-        return serverName;
-    }
-
-    public String getServerVersion() {
-        return serverVersion;
-    }
-
-    public int getBacklog() {
-        return backlog;
-    }
+    public String getHost() { return host; }
+    public int getPort() { return port; }
+    public String getEndpoint() { return endpoint; }
+    public Duration getSessionTimeout() { return sessionTimeout; }
+    public String getServerName() { return serverName; }
+    public String getServerVersion() { return serverVersion; }
+    public int getBacklog() { return backlog; }
+    public int getThreadPoolSize() { return threadPoolSize; }
 
     public static Builder builder() {
         return new Builder();
@@ -64,41 +47,16 @@ public class McpServerConfig {
         private String serverName = "mcp4j-server";
         private String serverVersion = "0.1.0";
         private int backlog = 0;
+        private int threadPoolSize = 10;
 
-        public Builder host(String host) {
-            this.host = host;
-            return this;
-        }
-
-        public Builder port(int port) {
-            this.port = port;
-            return this;
-        }
-
-        public Builder endpoint(String endpoint) {
-            this.endpoint = endpoint;
-            return this;
-        }
-
-        public Builder sessionTimeout(Duration sessionTimeout) {
-            this.sessionTimeout = sessionTimeout;
-            return this;
-        }
-
-        public Builder serverName(String serverName) {
-            this.serverName = serverName;
-            return this;
-        }
-
-        public Builder serverVersion(String serverVersion) {
-            this.serverVersion = serverVersion;
-            return this;
-        }
-
-        public Builder backlog(int backlog) {
-            this.backlog = backlog;
-            return this;
-        }
+        public Builder host(String host) { this.host = host; return this; }
+        public Builder port(int port) { this.port = port; return this; }
+        public Builder endpoint(String endpoint) { this.endpoint = endpoint; return this; }
+        public Builder sessionTimeout(Duration sessionTimeout) { this.sessionTimeout = sessionTimeout; return this; }
+        public Builder serverName(String serverName) { this.serverName = serverName; return this; }
+        public Builder serverVersion(String serverVersion) { this.serverVersion = serverVersion; return this; }
+        public Builder backlog(int backlog) { this.backlog = backlog; return this; }
+        public Builder threadPoolSize(int size) { this.threadPoolSize = size; return this; }
 
         public McpServerConfig build() {
             return new McpServerConfig(this);

@@ -1,20 +1,25 @@
 package me.afoo.mcp4j.protocol.mcp;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * MCP Initialize response result.
  */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class InitializeResult {
-    
+
     @JsonProperty("protocolVersion")
     private String protocolVersion;
-    
+
     @JsonProperty("capabilities")
     private ServerCapabilities capabilities;
-    
+
     @JsonProperty("serverInfo")
     private Implementation serverInfo;
+
+    @JsonProperty("instructions")
+    private String instructions;
 
     public InitializeResult(String protocolVersion, ServerCapabilities capabilities, Implementation serverInfo) {
         this.protocolVersion = protocolVersion;
@@ -34,24 +39,11 @@ public class InitializeResult {
         return serverInfo;
     }
 
-    public static class Implementation {
-        @JsonProperty("name")
-        private String name;
-        
-        @JsonProperty("version")
-        private String version;
+    public String getInstructions() {
+        return instructions;
+    }
 
-        public Implementation(String name, String version) {
-            this.name = name;
-            this.version = version;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public String getVersion() {
-            return version;
-        }
+    public void setInstructions(String instructions) {
+        this.instructions = instructions;
     }
 }

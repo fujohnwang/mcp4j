@@ -23,7 +23,7 @@ public class McpServer {
     private volatile boolean running = false;
 
     private McpServer(Builder builder) {
-        this.config = builder.config;
+        this.config = builder.configBuilder.build();
         this.toolRegistry = builder.toolRegistry;
         this.sessionManager = new SessionManager(config.getSessionTimeout().toMillis());
     }
@@ -35,15 +35,13 @@ public class McpServer {
 
         InetSocketAddress address = new InetSocketAddress(config.getHost(), config.getPort());
         httpServer = HttpServer.create(address, config.getBacklog());
-        
-        // Create thread pool for handling requests
-        executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(10);
+
+        executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(config.getThreadPoolSize());
         httpServer.setExecutor(executor);
-        
-        // Register MCP endpoint handler
+
         McpHttpHandler handler = new McpHttpHandler(config, toolRegistry, sessionManager);
         httpServer.createContext(config.getEndpoint(), handler);
-        
+
         httpServer.start();
         running = true;
     }
@@ -52,15 +50,12 @@ public class McpServer {
         if (!running) {
             return;
         }
-
         if (httpServer != null) {
             httpServer.stop(0);
         }
-        
         if (executor != null) {
             executor.shutdown();
         }
-        
         sessionManager.shutdown();
         running = false;
     }
@@ -82,84 +77,41 @@ public class McpServer {
     }
 
     public static class Builder {
-        private McpServerConfig config = McpServerConfig.builder().build();
+        private final McpServerConfig.Builder configBuilder = McpServerConfig.builder();
         private final ToolRegistry toolRegistry = new ToolRegistry();
 
         public Builder host(String host) {
-            this.config = McpServerConfig.builder()
-                .host(host)
-                .port(config.getPort())
-                .endpoint(config.getEndpoint())
-                .sessionTimeout(config.getSessionTimeout())
-                .serverName(config.getServerName())
-                .serverVersion(config.getServerVersion())
-                .backlog(config.getBacklog())
-                .build();
+            configBuilder.host(host);
             return this;
         }
 
         public Builder port(int port) {
-            this.config = McpServerConfig.builder()
-                .host(config.getHost())
-                .port(port)
-                .endpoint(config.getEndpoint())
-                .sessionTimeout(config.getSessionTimeout())
-                .serverName(config.getServerName())
-                .serverVersion(config.getServerVersion())
-                .backlog(config.getBacklog())
-                .build();
+            configBuilder.port(port);
             return this;
         }
 
         public Builder endpoint(String endpoint) {
-            this.config = McpServerConfig.builder()
-                .host(config.getHost())
-                .port(config.getPort())
-                .endpoint(endpoint)
-                .sessionTimeout(config.getSessionTimeout())
-                .serverName(config.getServerName())
-                .serverVersion(config.getServerVersion())
-                .backlog(config.getBacklog())
-                .build();
+            configBuilder.endpoint(endpoint);
             return this;
         }
 
         public Builder sessionTimeout(Duration sessionTimeout) {
-            this.config = McpServerConfig.builder()
-                .host(config.getHost())
-                .port(config.getPort())
-                .endpoint(config.getEndpoint())
-                .sessionTimeout(sessionTimeout)
-                .serverName(config.getServerName())
-                .serverVersion(config.getServerVersion())
-                .backlog(config.getBacklog())
-                .build();
+            configBuilder.sessionTimeout(sessionTimeout);
             return this;
         }
 
         public Builder serverName(String serverName) {
-            this.config = McpServerConfig.builder()
-                .host(config.getHost())
-                .port(config.getPort())
-                .endpoint(config.getEndpoint())
-                .sessionTimeout(config.getSessionTimeout())
-                .serverName(serverName)
-                .serverVersion(config.getServerVersion())
-                .backlog(config.getBacklog())
-                .build();
+            configBuilder.serverName(serverName);
             return this;
         }
 
         public Builder serverVersion(String serverVersion) {
-            this.config = McpServerConfig.builder()
-                .host(config.getHost())
-                .port(config.getPort())
-                .endpoint(config.getEndpoint())
-                .sessionTimeout(config.getSessionTimeout())
-                .serverName(config.getServerName())
-                .serverVersion(serverVersion)
-                .backlog(config.getBacklog())
-                .build();
+            configBuilder.serverVersion(serverVersion);
+            return this;
+        }
+
+        public Builder threadPoolSize(int size) {
+            configBuilder.threadPoolSize(size);
             return this;
         }
 
