@@ -11,6 +11,7 @@ import me.afoo.mcp4j.tool.Tool;
 import me.afoo.mcp4j.tool.ToolExecutor;
 import me.afoo.mcp4j.tool.ToolRegistry;
 import me.afoo.mcp4j.transport.SessionManager;
+import me.afoo.mcp4j.transport.SseWriter;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,15 +25,14 @@ import java.util.stream.Collectors;
  */
 public class McpHttpHandler implements HttpHandler {
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final String PROTOCOL_VERSION = "2025-03-26";
-    private static final String SESSION_HEADER = "Mcp-Session-Id";
+    private static final String PROTOCOL_VERSION = "2024-11-05";
+    private static final String SESSION_ID_PARAM = "sessionId";
     private static final String PROTOCOL_VERSION_HEADER = "MCP-Protocol-Version";
     
     private final McpServerConfig config;
     private final ToolRegistry toolRegistry;
     private final ToolExecutor toolExecutor;
     private final SessionManager sessionManager;
-    private boolean initialized = false;
 
     public McpHttpHandler(McpServerConfig config, ToolRegistry toolRegistry, SessionManager sessionManager) {
         this.config = config;
@@ -48,7 +48,7 @@ public class McpHttpHandler implements HttpHandler {
         // Set CORS headers
         exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
         exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-        exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type, " + SESSION_HEADER + ", " + PROTOCOL_VERSION_HEADER);
+        exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type, " + PROTOCOL_VERSION_HEADER);
         
         if ("OPTIONS".equals(method)) {
             exchange.sendResponseHeaders(204, -1);
@@ -66,13 +66,23 @@ public class McpHttpHandler implements HttpHandler {
                 sendError(exchange, 405, "Method not allowed");
             }
         } catch (Exception e) {
+            e.printStackTrace();
             sendError(exchange, 500, "Internal server error: " + e.getMessage());
         }
     }
 
     private void handlePost(HttpExchange exchange) throws IOException {
-        String sessionId = exchange.getRequestHeaders().getFirst(SESSION_HEADER);
+        String query = exchange.getRequestURI().getQuery();
+        String sessionId = null;
+        if (query != null && query.contains(SESSION_ID_PARAM + "=")) {
+            sessionId = query.split(SESSION_ID_PARAM + "=")[1].split("&")[0];
+        }
         
+        if (sessionId == null || !sessionManager.isValidSession(sessionId)) {
+            sendHttpError(exchange, 404, "Session not found");
+            return;
+        }
+
         // Read request body
         InputStream is = exchange.getRequestBody();
         byte[] requestBytes = readAllBytes(is);
@@ -82,45 +92,52 @@ public class McpHttpHandler implements HttpHandler {
         try {
             request = MAPPER.readValue(requestBody, JsonRpcRequest.class);
         } catch (Exception e) {
-            sendJsonRpcError(exchange, null, JsonRpcError.PARSE_ERROR, "Parse error");
+            JsonRpcResponse errorResponse = new JsonRpcResponse(null, new JsonRpcError(JsonRpcError.PARSE_ERROR, "Parse error"));
+            sendToSse(sessionId, errorResponse);
+            exchange.sendResponseHeaders(202, -1);
             return;
-        }
-
-        // Validate session for non-initialize requests
-        if (!"initialize".equals(request.getMethod())) {
-            if (sessionId == null || !sessionManager.isValidSession(sessionId)) {
-                sendHttpError(exchange, 404, "Session not found");
-                return;
-            }
         }
 
         // Process request
         JsonRpcResponse response = processRequest(request, sessionId);
         
-        // For initialize, create session and add header
-        if ("initialize".equals(request.getMethod()) && response.getError() == null) {
-            String newSessionId = sessionManager.createSession();
-            exchange.getResponseHeaders().set(SESSION_HEADER, newSessionId);
+        if (response != null) {
+            sendToSse(sessionId, response);
         }
 
-        // Send JSON response
-        sendJsonResponse(exchange, response);
+        // Standard MCP SSE: POST returns 202 Accepted
+        exchange.sendResponseHeaders(202, -1);
     }
 
     private void handleGet(HttpExchange exchange) throws IOException {
-        // Optional SSE endpoint for server-initiated messages
-        // For now, return 405 as we don't implement server push
-        sendError(exchange, 405, "GET not supported");
+        // SSE handshake
+        String sessionId = sessionManager.createSession();
+        SseWriter writer = new SseWriter(exchange);
+        sessionManager.setSseWriter(sessionId, writer);
+
+        // Send endpoint event
+        String endpointUrl = config.getEndpoint() + "?" + SESSION_ID_PARAM + "=" + sessionId;
+        writer.writeEvent("endpoint", endpointUrl);
     }
 
     private void handleDelete(HttpExchange exchange) throws IOException {
-        String sessionId = exchange.getRequestHeaders().getFirst(SESSION_HEADER);
-        
-        if (sessionId != null) {
+        String query = exchange.getRequestURI().getQuery();
+        if (query != null && query.contains(SESSION_ID_PARAM + "=")) {
+            String sessionId = query.split(SESSION_ID_PARAM + "=")[1].split("&")[0];
             sessionManager.removeSession(sessionId);
         }
-        
         exchange.sendResponseHeaders(204, -1);
+    }
+
+    private void sendToSse(String sessionId, JsonRpcResponse response) {
+        SseWriter writer = sessionManager.getSseWriter(sessionId);
+        if (writer != null) {
+            try {
+                writer.writeEvent("message", response);
+            } catch (IOException e) {
+                sessionManager.removeSession(sessionId);
+            }
+        }
     }
 
     private JsonRpcResponse processRequest(JsonRpcRequest request, String sessionId) {
@@ -131,18 +148,23 @@ public class McpHttpHandler implements HttpHandler {
             switch (method) {
                 case "initialize":
                     return handleInitialize(id, request.getParams());
+                case "notifications/initialized":
                 case "initialized":
-                    initialized = true;
-                    return new JsonRpcResponse(id, null);
+                    // Notification, no response
+                    return null;
                 case "tools/list":
                     return handleToolsList(id);
                 case "tools/call":
                     return handleToolsCall(id, request.getParams());
+                case "ping":
+                    return new JsonRpcResponse(id, new java.util.HashMap<>());
                 default:
+                    if (id == null) return null; // Notification
                     return new JsonRpcResponse(id, 
                         new JsonRpcError(JsonRpcError.METHOD_NOT_FOUND, "Method not found: " + method));
             }
         } catch (Exception e) {
+            if (id == null) return null;
             return new JsonRpcResponse(id, 
                 new JsonRpcError(JsonRpcError.INTERNAL_ERROR, "Internal error: " + e.getMessage()));
         }
@@ -178,12 +200,7 @@ public class McpHttpHandler implements HttpHandler {
         try {
             ToolsCallRequest callRequest = MAPPER.convertValue(params, ToolsCallRequest.class);
             ToolsCallResult result = toolExecutor.execute(callRequest.getName(), callRequest.getArguments());
-            
-            if (Boolean.TRUE.equals(result.getIsError())) {
-                return new JsonRpcResponse(id, 
-                    new JsonRpcError(JsonRpcError.INTERNAL_ERROR, "Tool execution failed", result));
-            }
-            
+            // Even if result.getIsError() is true, it's still a successful JSON-RPC response in MCP sense
             return new JsonRpcResponse(id, result);
         } catch (Exception e) {
             return new JsonRpcResponse(id, 

@@ -34,13 +34,13 @@ public class SseWriter {
         outputStream.flush();
     }
 
-    public synchronized void writeEvent(String eventId, Object data) throws IOException {
+    public synchronized void writeEvent(String eventType, Object data) throws IOException {
         if (closed) {
             throw new IOException("SSE stream is closed");
         }
         
         String json = MAPPER.writeValueAsString(data);
-        String event = "id: " + eventId + "\ndata: " + json + "\n\n";
+        String event = "event: " + eventType + "\ndata: " + json + "\n\n";
         outputStream.write(event.getBytes(StandardCharsets.UTF_8));
         outputStream.flush();
     }

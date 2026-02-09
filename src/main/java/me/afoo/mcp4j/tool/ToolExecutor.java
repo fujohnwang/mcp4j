@@ -44,13 +44,13 @@ public class ToolExecutor {
 
     private ToolsCallResult createSuccessResult(Object result) {
         String text = result != null ? result.toString() : "";
-        ToolsCallResult.Content content = new ToolsCallResult.Content("text", text);
+        ToolsCallResult.Content content = ToolsCallResult.Content.text(text);
         return new ToolsCallResult(Collections.singletonList(content));
     }
 
     private ToolsCallResult createErrorResult(String message) {
         ToolsCallResult result = new ToolsCallResult();
-        ToolsCallResult.Content content = new ToolsCallResult.Content("text", message);
+        ToolsCallResult.Content content = ToolsCallResult.Content.text(message);
         result.setContent(Collections.singletonList(content));
         result.setIsError(true);
         return result;

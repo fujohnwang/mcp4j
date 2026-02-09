@@ -42,16 +42,38 @@ public class ToolsCallResult {
         this.isError = isError;
     }
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class Content {
         @JsonProperty("type")
         private String type;
         
         @JsonProperty("text")
         private String text;
+        
+        @JsonProperty("data")
+        private String data;
+        
+        @JsonProperty("mimeType")
+        private String mimeType;
+        
+        @JsonProperty("resource")
+        private Object resource;
 
-        public Content(String type, String text) {
-            this.type = type;
-            this.text = text;
+        public Content() {}
+
+        public static Content text(String text) {
+            Content c = new Content();
+            c.type = "text";
+            c.text = text;
+            return c;
+        }
+
+        public static Content image(String data, String mimeType) {
+            Content c = new Content();
+            c.type = "image";
+            c.data = data;
+            c.mimeType = mimeType;
+            return c;
         }
 
         public String getType() {
@@ -60,6 +82,18 @@ public class ToolsCallResult {
 
         public String getText() {
             return text;
+        }
+
+        public String getData() {
+            return data;
+        }
+
+        public String getMimeType() {
+            return mimeType;
+        }
+
+        public Object getResource() {
+            return resource;
         }
     }
 }

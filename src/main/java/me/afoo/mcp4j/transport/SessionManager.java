@@ -28,6 +28,18 @@ public class SessionManager {
         return sessionId;
     }
 
+    public void setSseWriter(String sessionId, SseWriter writer) {
+        Session session = sessions.get(sessionId);
+        if (session != null) {
+            session.setSseWriter(writer);
+        }
+    }
+
+    public SseWriter getSseWriter(String sessionId) {
+        Session session = sessions.get(sessionId);
+        return (session != null) ? session.getSseWriter() : null;
+    }
+
     public boolean isValidSession(String sessionId) {
         Session session = sessions.get(sessionId);
         if (session == null) {
@@ -36,7 +48,10 @@ public class SessionManager {
         
         long now = System.currentTimeMillis();
         if (now - session.getLastAccessTime() > sessionTimeoutMillis) {
-            sessions.remove(sessionId);
+            Session removed = sessions.remove(sessionId);
+            if (removed != null && removed.getSseWriter() != null) {
+                removed.getSseWriter().close();
+            }
             return false;
         }
         
@@ -45,7 +60,10 @@ public class SessionManager {
     }
 
     public void removeSession(String sessionId) {
-        sessions.remove(sessionId);
+        Session removed = sessions.remove(sessionId);
+        if (removed != null && removed.getSseWriter() != null) {
+            removed.getSseWriter().close();
+        }
     }
 
     public void shutdown() {
@@ -58,21 +76,31 @@ public class SessionManager {
             cleanupExecutor.shutdownNow();
             Thread.currentThread().interrupt();
         }
+        sessions.values().forEach(s -> {
+            if (s.getSseWriter() != null) {
+                s.getSseWriter().close();
+            }
+        });
         sessions.clear();
     }
 
     private void startCleanupTask() {
         cleanupExecutor.scheduleAtFixedRate(() -> {
             long now = System.currentTimeMillis();
-            sessions.entrySet().removeIf(entry -> 
-                now - entry.getValue().getLastAccessTime() > sessionTimeoutMillis
-            );
+            sessions.entrySet().removeIf(entry -> {
+                boolean expired = now - entry.getValue().getLastAccessTime() > sessionTimeoutMillis;
+                if (expired && entry.getValue().getSseWriter() != null) {
+                    entry.getValue().getSseWriter().close();
+                }
+                return expired;
+            });
         }, 1, 1, TimeUnit.MINUTES);
     }
 
     private static class Session {
         private final String id;
         private long lastAccessTime;
+        private SseWriter sseWriter;
 
         public Session(String id, long lastAccessTime) {
             this.id = id;
@@ -85,6 +113,14 @@ public class SessionManager {
 
         public void updateLastAccessTime(long time) {
             this.lastAccessTime = time;
+        }
+
+        public SseWriter getSseWriter() {
+            return sseWriter;
+        }
+
+        public void setSseWriter(SseWriter sseWriter) {
+            this.sseWriter = sseWriter;
         }
     }
 }
