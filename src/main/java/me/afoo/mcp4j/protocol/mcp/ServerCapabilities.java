@@ -8,7 +8,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ServerCapabilities {
-    
+
     @JsonProperty("tools")
     private ToolsCapability tools;
 
@@ -27,16 +27,25 @@ public class ServerCapabilities {
         this.tools = tools;
     }
 
-    @JsonInclude(JsonInclude.Include.ALWAYS)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class ToolsCapability {
-        // Empty object for now, can be extended with tool-specific capabilities
-        
+
+        @JsonProperty("listChanged")
+        private Boolean listChanged;
+
         public ToolsCapability() {
         }
-        
-        // Dummy method to make Jackson happy with empty bean
-        public boolean isEmpty() {
-            return true;
+
+        public ToolsCapability(Boolean listChanged) {
+            this.listChanged = listChanged;
+        }
+
+        public Boolean getListChanged() {
+            return listChanged;
+        }
+
+        public void setListChanged(Boolean listChanged) {
+            this.listChanged = listChanged;
         }
     }
 }

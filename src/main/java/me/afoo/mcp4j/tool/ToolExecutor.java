@@ -23,10 +23,12 @@ public class ToolExecutor {
             return createErrorResult("Tool not found: " + toolName);
         }
 
+        Map<String, Object> args = arguments != null ? arguments : Collections.emptyMap();
+
         // Validate input against schema
         if (tool.getInputSchema() != null) {
             SchemaValidator.ValidationResult validation = 
-                SchemaValidator.validate(tool.getInputSchema(), arguments);
+                SchemaValidator.validate(tool.getInputSchema(), args);
             
             if (!validation.isValid()) {
                 return createErrorResult("Invalid arguments: " + String.join(", ", validation.getErrors()));
@@ -35,7 +37,7 @@ public class ToolExecutor {
 
         // Execute tool
         try {
-            Object result = tool.getHandler().execute(arguments);
+            Object result = tool.getHandler().execute(args);
             return createSuccessResult(result);
         } catch (Exception e) {
             return createErrorResult("Tool execution failed: " + e.getMessage());

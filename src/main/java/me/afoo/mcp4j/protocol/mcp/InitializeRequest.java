@@ -6,13 +6,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * MCP Initialize request parameters.
  */
 public class InitializeRequest {
-    
+
     @JsonProperty("protocolVersion")
     private String protocolVersion;
-    
+
     @JsonProperty("capabilities")
     private ClientCapabilities capabilities;
-    
+
     @JsonProperty("clientInfo")
     private Implementation clientInfo;
 
@@ -42,29 +42,5 @@ public class InitializeRequest {
 
     public static class ClientCapabilities {
         // Client capabilities can be extended as needed
-    }
-
-    public static class Implementation {
-        @JsonProperty("name")
-        private String name;
-        
-        @JsonProperty("version")
-        private String version;
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public String getVersion() {
-            return version;
-        }
-
-        public void setVersion(String version) {
-            this.version = version;
-        }
     }
 }
